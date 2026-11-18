@@ -59,5 +59,6 @@ second, windowless Horizon in scratch folders with this pack, for screenshots th
 
 ## Licence
 
-MIT, see [LICENSE](LICENSE). The pack contains no code, textures or data from Minecraft, Mojang or
-Microsoft: every texture is painted by `skygen`.
+[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/), see [LICENSE](LICENSE): share and
+adapt it for non-commercial use, credit HippedPainter68, and share changes under the same licence. The pack
+contains no code, textures or data from Minecraft, Mojang or Microsoft: every texture is painted by `skygen`.
