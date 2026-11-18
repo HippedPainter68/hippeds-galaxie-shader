@@ -48,26 +48,22 @@ name = "Light shafts"
 output = "rays_target"
 scale = 0.5
 
-# When the rainwater on the ground will have dried: one texel kept from frame to frame.
-[[resource]]
-name = "rain_clock"
-format = "r32float"
-size = [1, 1]
-keep = "view"
-
+# When the rainwater on the ground will have dried, kept from frame to frame in two small targets.
 [[post]]
 file = "post/rain_clock.wgsl"
 name = "Rain clock"
-compute = true
-dispatch = [1, 1, 1]
-workgroup = [1, 1, 1]
-reads = ["rain_clock_previous"]
-writes = ["rain_clock"]
+output = "rain_clock"
+scale = 0.25
+
+[[post]]
+file = "post/rain_copy.wgsl"
+name = "Rain clock, kept"
+output = "rain_prev"
+scale = 0.25
 
 [[post]]
 file = "post/final.wgsl"
 name = "Puddles, fog, water, exposure, tone"
-reads = ["rain_clock"]
 
 [[post]]
 file = "post/lens.wgsl"

@@ -6,3 +6,4 @@ skygen/target/
 skygen/src/bin/
 tests/test_resourcepacks.py
 __pycache__/
+submission/

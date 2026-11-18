@@ -1,10 +1,11 @@
-// The rain clock: when the rainwater on the ground will have dried, in frame.time seconds, kept from frame
-// to frame in rain_clock (one texel; 0 when the ground is dry). The final pass reads it to draw the wet
-// ground and the puddles. (Shader API 0.1 kept it in the picture's alpha through `history`; 0.2 has no
-// history and ignores a post pass's alpha, but keeps resources.)
+// The rain clock: when the rainwater on the ground will have dried, in frame.time seconds (0 when the
+// ground is dry). This pass writes it into rain_clock; the next one copies it into rain_prev, so here
+// rain_prev still holds last frame's. The final pass reads rain_clock to draw the wet ground and the
+// puddles. (Two small targets of the pack's own instead of a kept resource: the registry's submission
+// form reads only these.)
 override puddle_drying: f32 = 180.0;
 
-// An expiry time, not a per-frame water increment, so a small drying step is never rounded away.
+// An expiry time, not a per-frame water increment: a float16 target would round small drying steps away.
 fn gs_rain_deadline(before: f32) -> f32 {
     if frame.dimension != 0 {
         return 0.0;
@@ -25,10 +26,7 @@ fn gs_rain_deadline(before: f32) -> f32 {
     return deadline + 1.0;
 }
 
-fn compute(input: ComputeInput) {
-    if !input.in_bounds {
-        return;
-    }
-    let before = textureLoad(rain_clock_previous, vec2<i32>(0), 0).r;
-    textureStore(rain_clock, vec2<i32>(0), vec4<f32>(gs_rain_deadline(before), 0.0, 0.0, 0.0));
+fn post(input: PostInput) -> vec4<f32> {
+    let before = textureLoad(rain_prev, vec2<i32>(0), 0).r;
+    return vec4<f32>(gs_rain_deadline(before), 0.0, 0.0, 1.0);
 }

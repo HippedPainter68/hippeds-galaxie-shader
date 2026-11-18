@@ -1,4 +1,4 @@
-"""Weather checks for rainwater lifetime, float precision and world-anchored puddles.
+"""Weather checks for rainwater lifetime, float16 precision and world-anchored puddles.
 
 Run: python shaderpacks/tests/test_weather.py
 The pack's WGSL must additionally pass horizon-shader check; these are numerical model checks.
@@ -141,14 +141,17 @@ class WeatherTests(unittest.TestCase):
         options = {option["id"]: option for option in manifest["options"]}
         self.assertEqual(options["puddle_drying"]["default"], 180)
         self.assertIn("set_surface(n, smoothness, rain_exposure)", (PACK / "material.wgsl").read_text())
-        # Shader API 0.2: no `history`; the expiry lives in a kept 1x1 r32float written by its own pass.
-        resources = {entry["name"]: entry for entry in manifest["resource"]}
-        self.assertEqual(resources["rain_clock"]["format"], "r32float")
-        self.assertEqual(resources["rain_clock"]["keep"], "view")
-        clock = next(entry for entry in manifest["post"] if entry["file"] == "post/rain_clock.wgsl")
-        self.assertEqual(clock["reads"], ["rain_clock_previous"])
-        self.assertEqual(clock["writes"], ["rain_clock"])
-        self.assertIn("textureLoad(rain_clock_previous, vec2<i32>(0), 0).r", (PACK / "post/rain_clock.wgsl").read_text())
+        # Shader API 0.2: no `history`; the expiry ping-pongs between two of the pack's own float16 targets:
+        # the clock pass reads last frame's copy, the copy pass runs after it.
+        files = [entry["file"] for entry in manifest["post"]]
+        outputs = {entry["file"]: entry.get("output") for entry in manifest["post"]}
+        self.assertLess(files.index("post/rain_clock.wgsl"), files.index("post/rain_copy.wgsl"))
+        self.assertLess(files.index("post/rain_copy.wgsl"), files.index("post/final.wgsl"))
+        self.assertEqual(outputs["post/rain_clock.wgsl"], "rain_clock")
+        self.assertEqual(outputs["post/rain_copy.wgsl"], "rain_prev")
+        self.assertNotIn("resource", manifest)
+        self.assertIn("textureLoad(rain_prev, vec2<i32>(0), 0).r", (PACK / "post/rain_clock.wgsl").read_text())
+        self.assertIn("textureLoad(rain_clock, vec2<i32>(0), 0).r", (PACK / "post/rain_copy.wgsl").read_text())
         self.assertIn("textureLoad(rain_clock, vec2<i32>(0), 0).r", (PACK / "post/final.wgsl").read_text())
 
     def test_grass_relief_is_limited_to_turf_top_faces(self):
