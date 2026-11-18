@@ -1,0 +1,8 @@
+# Built packages and tools: made from this source, not part of it.
+*.hshader
+tools/
+skygen/target/
+# The resource-pack texture exporter and its tests belong to the resource packs, not to this shader.
+skygen/src/bin/
+tests/test_resourcepacks.py
+__pycache__/

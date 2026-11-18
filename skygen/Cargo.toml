@@ -1,0 +1,11 @@
+[package]
+name = "skygen"
+version = "0.1.0"
+edition = "2021"
+default-run = "skygen"
+
+# Generates galaxy_sky's textures: `cargo run --release -- ../galaxy_sky`
+[dependencies]
+png = "0.18"
+
+[workspace]

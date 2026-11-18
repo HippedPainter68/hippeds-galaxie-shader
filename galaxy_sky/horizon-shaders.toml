@@ -1,0 +1,460 @@
+schema = 1
+id = "galaxy_sky"
+name = "Hipped´s Galaxie Shader"
+version = "1.0.0"
+api = "0.2"
+description = "A galaxy sky, a black hole over the End, volumetric storm clouds, rain rings, lingering puddles that shrink as they dry, sheet lightning, coloured light, shadows and physical water."
+authors = ["HippedPainter68"]
+license = "MIT"
+shared = ["common.wgsl"]
+
+[sky]
+file = "sky.wgsl"
+name = "Atmosphere, clouds and galaxy"
+sun = false
+stars = false
+clouds = false
+
+[vertex]
+file = "vertex.wgsl"
+
+[material]
+file = "material.wgsl"
+
+[weather]
+file = "weather.wgsl"
+
+[displacement]
+distance = 8.0
+cells = 16
+
+[reflection]
+option = "reflections"
+
+[shadow]
+resolution = 2048
+distance = 128.0
+option = "shadows"
+
+[[post]]
+file = "post/bloom.wgsl"
+name = "Bloom"
+output = "glow_target"
+scale = 0.5
+
+[[post]]
+file = "post/rays.wgsl"
+name = "Light shafts"
+output = "rays_target"
+scale = 0.5
+
+# When the rainwater on the ground will have dried: one texel kept from frame to frame.
+[[resource]]
+name = "rain_clock"
+format = "r32float"
+size = [1, 1]
+keep = "view"
+
+[[post]]
+file = "post/rain_clock.wgsl"
+name = "Rain clock"
+compute = true
+dispatch = [1, 1, 1]
+workgroup = [1, 1, 1]
+reads = ["rain_clock_previous"]
+writes = ["rain_clock"]
+
+[[post]]
+file = "post/final.wgsl"
+name = "Puddles, fog, water, exposure, tone"
+reads = ["rain_clock"]
+
+[[post]]
+file = "post/lens.wgsl"
+name = "Lens"
+
+# ---- Textures (painted by ../skygen). ----
+
+[[textures]]
+id = "night_sky"          # the night sky panorama: glowing nebulae
+file = "night_sky.png"
+
+[[textures]]
+id = "sky_bodies"         # the gas giant and its moons, colour times coverage, alpha the coverage
+file = "sky_bodies.png"
+wrap = "clamp"
+
+[[textures]]
+id = "planet_maps"        # the giant's and the moons' surfaces unrolled, so they can turn
+file = "planet_maps.png"
+
+[[textures]]
+id = "cloud_noise"        # tiling 2D noise: where clouds stand (R, B) and how tall they grow (B)
+file = "cloud_noise.png"
+
+[[textures]]
+id = "cloud_shape"        # a 64-texel cube of noise, 64 slices of 66 x 66 in 8 columns: the clouds' shapes
+file = "cloud_shape.png"
+wrap = "clamp"
+
+[[textures]]
+id = "cloud_detail"       # a 32-texel cube, 32 slices of 34 x 34 in 8 columns: the frayed edges
+file = "cloud_detail.png"
+wrap = "clamp"
+
+# ---- Materials: the first entry that names a sprite wins. ----
+
+[[materials]]
+id = 23   # the Nether portal: a sheet of violet liquid light
+sprites = ["block/nether_portal"]
+
+[[materials]]
+id = 19   # tilled soil: LabPBR furrows become geometry near the camera
+sprites = ["block/farmland", "block/farmland_moist"]
+
+[[materials]]
+id = 22   # meadow turf: shallow grass/moss relief on top faces only
+sprites = ["block/grass_block_top"]
+
+[[materials]]
+id = 20   # bark: deep grooves, while stripped sides and cut ends retain flat heights
+sprites = ["block/*_log", "block/*_stem"]
+
+[[materials]]
+id = 21   # plank joints: shallow bevelled board relief
+sprites = ["block/*_planks", "block/bamboo_mosaic"]
+
+[[materials]]
+id = 10   # leaves: sway, let sunlight through
+sprites = ["block/*leaves*"]
+
+[[materials]]
+id = 12   # water plants: sway with the water
+sprites = ["block/seagrass", "block/tall_seagrass_top"]
+
+[[materials]]
+id = 11   # grass, flowers, crops: bend in the wind, let sunlight through
+# Only plants one block tall, and the top halves of two-block plants: each block bends on its own, so a
+# plant stacked from several blocks (sugar cane, vines, the lower halves) would tear apart.
+sprites = [
+    "block/short_grass", "block/tall_grass_top", "block/fern", "block/large_fern_top", "block/dead_bush",
+    "block/short_dry_grass", "block/tall_dry_grass", "block/bush", "block/firefly_bush",
+    "block/dandelion", "block/poppy", "block/blue_orchid", "block/allium", "block/azure_bluet",
+    "block/*_tulip", "block/oxeye_daisy", "block/cornflower", "block/lily_of_the_valley", "block/torchflower",
+    "block/lilac_top", "block/rose_bush_top", "block/peony_top",
+    "block/*_sapling", "block/wheat_stage*", "block/carrots_stage*",
+    "block/potatoes_stage*", "block/beetroots_stage*", "block/sweet_berry_bush_stage*",
+]
+
+[[materials]]
+id = 13   # snow: glitters toward the sun
+sprites = ["block/snow", "block/powder_snow"]
+
+[[materials]]
+id = 14   # ice: smooth
+sprites = ["block/ice", "block/packed_ice", "block/blue_ice"]
+
+[[materials]]
+id = 15   # metal: mirror-like, coloured reflections
+sprites = [
+    "block/iron_block", "block/gold_block", "block/copper_block", "block/netherite_block",
+    "block/cut_copper", "block/exposed_copper", "block/exposed_cut_copper", "block/raw_gold_block",
+    "block/iron_bars", "block/anvil*", "block/cauldron_*",
+]
+
+[[materials]]
+id = 16   # polished stone, gems, glazed: glossy
+sprites = [
+    "block/polished_*", "block/smooth_*", "block/quartz_block_*", "block/*_glazed_terracotta",
+    "block/obsidian", "block/diamond_block", "block/emerald_block", "block/lapis_block", "block/amethyst_block",
+]
+
+[[materials]]
+id = 18   # ores: the coloured specks glow a little in the dark
+sprites = ["block/*_ore"]
+
+# ---- Coloured block light. ----
+
+[[lights]]
+color = [0.3, 0.7, 1.0]
+blocks = ["soul_*"]
+
+[[lights]]
+color = [1.0, 0.22, 0.15]
+blocks = ["redstone_torch", "redstone_wall_torch", "redstone_ore", "deepslate_redstone_ore"]
+
+[[lights]]
+color = [0.6, 0.3, 1.0]
+blocks = ["nether_portal", "crying_obsidian", "respawn_anchor", "amethyst_cluster", "*_amethyst_bud"]
+
+[[lights]]
+color = [0.55, 0.9, 1.0]
+blocks = ["sea_lantern", "conduit", "beacon", "sea_pickle"]
+
+[[lights]]
+color = [0.2, 0.75, 0.85]
+blocks = ["sculk_*", "glow_lichen"]
+
+[[lights]]
+color = [0.5, 1.0, 0.6]
+blocks = ["verdant_froglight"]
+
+[[lights]]
+color = [1.0, 0.6, 0.9]
+blocks = ["pearlescent_froglight"]
+
+[[lights]]
+color = [0.9, 0.92, 1.0]
+blocks = ["end_rod"]
+
+[[lights]]
+color = [1.0, 0.42, 0.12]
+blocks = ["lava", "fire", "magma_block", "campfire", "*furnace", "smoker"]
+
+[[lights]]
+color = [1.0, 0.72, 0.38]
+blocks = [
+    "torch", "wall_torch", "lantern", "jack_o_lantern", "glowstone", "shroomlight", "redstone_lamp",
+    "ochre_froglight", "*candle*", "*copper_bulb", "copper_torch", "copper_wall_torch", "copper_lantern",
+]
+
+# Every other block that gives light: warm white. Last, so the colours above win. With Horizon's Dynamic
+# lights on, this is also the colour such a block gives while it is held or lies on the ground.
+[[lights]]
+color = [1.0, 0.86, 0.66]
+blocks = ["*"]
+
+# ---- Options. ----
+
+[[options]]
+id = "shadows"
+name = "Shadows"
+type = "bool"
+default = true
+
+[[options]]
+id = "reflections"
+name = "Water mirror"
+description = "The world mirrored in the water. Off: the water reflects the sky colour only."
+type = "bool"
+default = true
+
+[[options]]
+id = "colored_light"
+name = "Coloured light"
+description = "Lava, soul torches and other sources colour what they light."
+type = "float"
+default = 1.0
+min = 0.0
+max = 2.0
+step = 0.05
+
+[[options]]
+id = "ray_strength"
+name = "Light shafts"
+description = "How strongly sunlight glows in the air and through gaps."
+type = "float"
+default = 0.6
+min = 0.0
+max = 2.0
+step = 0.05
+
+[[options]]
+id = "bloom_strength"
+name = "Bloom"
+type = "float"
+default = 0.4
+min = 0.0
+max = 2.0
+step = 0.05
+
+[[options]]
+id = "fog_amount"
+name = "Haze"
+description = "Haze over far terrain. Jungles are humid, deserts dusty, cold biomes clear and blue."
+type = "float"
+default = 0.5
+min = 0.0
+max = 2.0
+step = 0.05
+
+[[options]]
+id = "cloud_amount"
+name = "Clouds"
+type = "float"
+default = 0.5
+min = 0.0
+max = 1.0
+step = 0.05
+
+[[options]]
+id = "cloud_quality"
+name = "Cloud quality"
+description = "How finely the clouds are traced. High is smoother and costs more."
+type = "choice"
+values = ["Low", "Medium", "High"]
+default = "Medium"
+
+[[options]]
+id = "wetness_amount"
+name = "Wet ground"
+description = "Rain darkens exposed ground and fills reflecting puddles. Shallow puddles dry first."
+type = "float"
+default = 1.0
+min = 0.0
+max = 1.0
+step = 0.05
+
+[[options]]
+id = "puddle_drying"
+name = "Puddle drying time"
+description = "Seconds for a fully soaked surface to dry after rain. Shader reloads and history resets clear the rainwater."
+type = "float"
+default = 180.0
+min = 30.0
+max = 600.0
+step = 15.0
+
+[[options]]
+id = "storm_flashes"
+name = "Lightning flashes"
+description = "Distant sheet lightning during thunderstorms. 0 is off. Atmospheric flashes are independent of vanilla strikes and thunder sounds."
+type = "float"
+default = 0.6
+min = 0.0
+max = 1.0
+step = 0.05
+
+[[options]]
+id = "wind_strength"
+name = "Wind"
+description = "How far leaves, grass and flowers move. Rain and thunder add to it."
+type = "float"
+default = 1.0
+min = 0.0
+max = 2.0
+step = 0.05
+
+[[options]]
+id = "wave_height"
+name = "Wave height"
+type = "float"
+default = 0.12
+min = 0.0
+max = 0.5
+step = 0.01
+
+[[options]]
+id = "wave_speed"
+name = "Wave speed"
+type = "float"
+default = 1.0
+min = 0.0
+max = 3.0
+step = 0.05
+
+[[options]]
+id = "galaxy_brightness"
+name = "Nebula brightness"
+type = "float"
+default = 1.0
+min = 0.0
+max = 3.0
+step = 0.05
+
+[[options]]
+id = "star_density"
+name = "Star density"
+type = "float"
+default = 0.5
+min = 0.0
+max = 1.0
+step = 0.05
+
+[[options]]
+id = "aurora"
+name = "Aurora"
+description = "Northern lights, now and then, at night in cold biomes only."
+type = "float"
+default = 1.0
+min = 0.0
+max = 2.0
+step = 0.05
+
+[[options]]
+id = "day_blue"
+name = "Day blue"
+description = "How deep the blue of the day sky is."
+type = "float"
+default = 1.0
+min = 0.5
+max = 2.0
+step = 0.05
+
+[[options]]
+id = "exposure"
+name = "Exposure"
+type = "float"
+default = 1.0
+min = 0.5
+max = 2.0
+step = 0.05
+
+[[options]]
+id = "auto_exposure"
+name = "Auto exposure"
+description = "The picture brightens in the dark and settles outside, like an eye."
+type = "bool"
+default = true
+
+[[options]]
+id = "saturation"
+name = "Saturation"
+type = "float"
+default = 1.1
+min = 0.0
+max = 2.0
+step = 0.02
+
+[[options]]
+id = "fxaa"
+name = "Smooth edges"
+type = "bool"
+default = true
+
+[[options]]
+id = "depth_of_field"
+name = "Depth of field"
+description = "Blurs what is nearer or farther than the thing in the middle of the screen. 0 is off."
+type = "float"
+default = 0.0
+min = 0.0
+max = 1.0
+step = 0.05
+
+[[options]]
+id = "motion_blur"
+name = "Motion blur"
+type = "float"
+default = 0.0
+min = 0.0
+max = 1.0
+step = 0.05
+
+[[options]]
+id = "chromatic_aberration"
+name = "Chromatic aberration"
+type = "float"
+default = 0.0
+min = 0.0
+max = 1.0
+step = 0.05
+
+[[options]]
+id = "vignette"
+name = "Vignette"
+type = "bool"
+default = true
+
+[budget]
+gpu_ms = 6.0
