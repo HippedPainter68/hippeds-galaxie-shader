@@ -1,8 +1,7 @@
 // Galaxy Sky: the sky. By day sunlight scattered by the air with volumetric clouds; by night the pack's
 // painted sky (night_sky.png: a blue gas giant with its moons over glowing nebulae) under sharp twinkling
 // stars and, in cold biomes now and then, an aurora. The giant and its moons show by day too, pale behind
-// the air. The sun and the stars are drawn here (the manifest turns Horizon's own off), the moon is still
-// Horizon's.
+// the air. The sun, the moon and the stars are drawn here (the manifest turns Horizon's own off).
 override galaxy_brightness: f32 = 1.0;
 override star_density: f32 = 0.5;
 override aurora: f32 = 1.0;
@@ -151,8 +150,10 @@ fn gs_meteor(d: vec3<f32>) -> vec3<f32> {
 }
 
 // A great comet, in about one stretch of nights in five (a stretch lasts until the player sleeps or the
-// time is set): a bright head, a straight blue gas tail and a wider, curved dust tail, both pointing away
-// from the sun. It wanders about 20 degrees a night, back and forth over the hour frame.time runs.
+// time is set), drawn after photographs of Hale-Bopp and NEOWISE: a tiny bright nucleus in a green-cyan
+// coma; a broad, curved dust tail that fans out behind the orbit with faint striations and fades over
+// some 30 degrees; and a narrow, straight blue ion tail with streamers, both pointing away from the sun.
+// It wanders about 20 degrees a night, back and forth over the hour frame.time runs.
 fn gs_comet(d: vec3<f32>) -> vec3<f32> {
     let seed = gs_event_seed().x;
     if gs_hash13(vec3<f32>(seed, 3.0, 1.0)) > 0.2 {
@@ -163,22 +164,66 @@ fn gs_comet(d: vec3<f32>) -> vec3<f32> {
     let az = h.x * 6.2831853 + 0.35 * sin(swing);
     let el = 0.45 + 0.35 * h.y + 0.08 * sin(swing * 2.0);
     let c = vec3<f32>(cos(el) * cos(az), sin(el), cos(el) * sin(az));
-    if dot(d, c) < 0.6 {
+    let z = dot(d, c);
+    if z < 0.5 {
         return vec3<f32>(0.0);
     }
+    // Sky coordinates around the head, gnomonic so the long tails stay straight: x away from the sun.
     let sun = frame.sun_direction;
     let away = normalize(c * dot(sun, c) - sun);
-    let rel = d - c;
-    let along = dot(rel, away);
-    let across = dot(rel, cross(c, away));
-    let r = length(rel);
-    let head = exp(-r * r * 9000.0) * 1.5 + exp(-r * 110.0) * 0.35;
-    let grow = max(along, 0.0);
-    let gas = exp(-pow(across / (0.006 + grow * 0.05), 2.0)) * exp(-grow * 4.5) * step(0.0, along);
-    let bent = across - grow * grow * 0.6;
-    let fine = 0.7 + 0.3 * gs_noise(vec3<f32>(bent * 90.0 / (0.05 + grow), grow * 6.0, 3.0));
-    let dust = exp(-pow(bent / (0.012 + grow * 0.17), 2.0)) * exp(-grow * 3.5) * step(0.0, along) * fine;
-    return vec3<f32>(0.85, 0.95, 1.0) * head + vec3<f32>(0.4, 0.65, 1.0) * gas * 0.6 + vec3<f32>(1.0, 0.9, 0.7) * dust * 0.45;
+    let side = normalize(cross(c, away));
+    let p = vec2<f32>(dot(d, away), dot(d, side)) / z;
+    let r = length(p);
+    let s = max(p.x, 0.0);
+
+    let nucleus = exp(-r * r * 60000.0) * 2.2;
+    let coma = exp(-r * 90.0) * 0.4 + exp(-r * r * 1500.0) * 0.25;
+
+    // Ion tail: narrow and straight, streamers drifting slowly outward.
+    let ion_w = 0.003 + s * 0.03;
+    let streamers = 0.5 + 0.5 * gs_noise(vec3<f32>(p.y / ion_w * 2.5, s * 5.0 - frame.time * 0.01, 7.0));
+    let ion = exp(-pow(p.y / ion_w, 2.0)) * exp(-s * 2.4) * smoothstep(0.0, 0.03, p.x) * streamers;
+
+    // Dust tail: bends behind the orbit and fans out; striations run out from the nucleus.
+    let dy = p.y - s * s * 0.7;
+    let dust_w = 0.008 + s * 0.3;
+    let striae = 0.7 + 0.3 * gs_noise(vec3<f32>(dy / (s + 0.015) * 12.0, s * 1.2, 3.0));
+    let dust = exp(-pow(dy / dust_w, 2.0)) * exp(-s * 2.2) * smoothstep(-0.01, 0.04, p.x) * striae;
+
+    return vec3<f32>(1.0, 0.98, 0.92) * nucleus + vec3<f32>(0.6, 1.0, 0.85) * coma
+        + vec3<f32>(0.3, 0.55, 1.0) * ion * 0.16 + vec3<f32>(1.0, 0.9, 0.72) * dust * 0.85;
+}
+
+// The moon: a round, cratered ball (planet_maps.png's grey moon, its face always toward the world) in
+// the phase Horizon's moon has, the terminator soft, a faint earthshine on the dark side. 4 degrees across
+// (Minecraft's square was 11). rgb its light, a how much of the sky behind it it hides.
+fn gs_moon(d: vec3<f32>) -> vec4<f32> {
+    let m = frame.moon_direction;
+    let rad = 0.035;
+    let up_ref = select(vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(1.0, 0.0, 0.0), abs(m.y) > 0.99);
+    let t1 = normalize(cross(up_ref, m));
+    let t2 = cross(m, t1);
+    let off = d - m * dot(d, m);
+    let q = vec2<f32>(dot(off, t1), dot(off, t2)) / rad;
+    let r = length(q);
+    if r >= 1.0 || dot(d, m) < 0.0 {
+        return vec4<f32>(0.0);
+    }
+    let n = vec3<f32>(q, sqrt(1.0 - r * r));
+    // Phase 0 full, 4 new: the light comes from the viewer's side at full moon, from behind at new moon;
+    // waning moons are lit on one side, waxing ones on the other.
+    let a = f32(frame.moon_phase) * 0.7853982;
+    let l = vec3<f32>(-sin(a), 0.0, cos(a));
+    let lit = smoothstep(-0.04, 0.1, dot(n, l));
+    let u = atan2(n.x, n.z) / 12.566371 + 0.25;
+    let v = (8.0 + clamp(0.5 - asin(n.y) / 3.1415927, 0.12, 0.88)) / 12.0;
+    let tex = textureSampleLevel(planet_maps, planet_maps_sampler, vec2<f32>(u, v), 0.0).rgb;
+    // Dark grey seas, bright highlands and crater rims.
+    let grey = mix(vec3<f32>(0.33, 0.33, 0.36), vec3<f32>(0.93, 0.92, 0.88), smoothstep(0.12, 0.7, gs_luma(tex)));
+    let limb = 0.75 + 0.25 * sqrt(n.z);
+    let rgb = grey * limb * (lit * 1.05 + 0.035);
+    let cover = 1.0 - smoothstep(0.97, 1.0, r);
+    return vec4<f32>(rgb * cover, cover);
 }
 
 fn sky(input: SkyInput) -> vec4<f32> {
@@ -206,6 +251,9 @@ fn sky(input: SkyInput) -> vec4<f32> {
     day = mix(day, vec3<f32>(gs_luma(day)) * 0.7, frame.rain * 0.75);
     let toward = max(dot(d, sun), 0.0);
     day += gs_light_color() * smoothstep(0.9992, 0.9996, toward) * 2.5 * clear * (1.0 - hidden);
+    // The moon by day: its lit part pale through the air, its dark part the colour of the sky.
+    let moon = gs_moon(d);
+    day += moon.rgb * 0.45 * clear;
 
     // Night: the painted sky, the nebulae brightened by the option, stars everywhere but in front of the
     // giant and its moons, a glow around the moon, the aurora.
@@ -217,7 +265,10 @@ fn sky(input: SkyInput) -> vec4<f32> {
     let giant_ang = acos(clamp(dot(d, vec3<f32>(0.0, 0.5878, -0.8090)), -1.0, 1.0));
     night += vec3<f32>(0.10, 0.30, 0.55) * 0.3 * exp(-max(giant_ang - 0.2618, 0.0) / 0.2618 * 5.0);
     night = night * (1.0 - bodies.a) + bodies.rgb;
-    night += vec3<f32>(0.15, 0.2, 0.35) * pow(max(dot(d, frame.moon_direction), 0.0), 24.0) * 0.4;
+    // The moon hides the stars behind it; its glow grows with the lit part.
+    night = night * (1.0 - moon.a) + moon.rgb;
+    let moon_lit = 0.5 + 0.5 * cos(f32(frame.moon_phase) * 0.7853982);
+    night += vec3<f32>(0.15, 0.2, 0.35) * pow(max(dot(d, frame.moon_direction), 0.0), 24.0) * 0.4 * moon_lit;
     night += gs_aurora(d) + gs_meteor(d) + gs_comet(d);
     night *= 1.0 - 0.8 * frame.rain;
 

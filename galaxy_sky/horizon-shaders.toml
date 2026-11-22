@@ -1,7 +1,7 @@
 schema = 1
 id = "galaxy_sky"
 name = "Hipped´s Galaxie Shader"
-version = "1.0.0"
+version = "1.1.0"
 api = "0.2"
 description = "A galaxy sky, a black hole over the End, volumetric storm clouds, rain rings, lingering puddles that shrink as they dry, sheet lightning, coloured light, shadows and physical water."
 authors = ["HippedPainter68"]
@@ -12,6 +12,7 @@ shared = ["common.wgsl"]
 file = "sky.wgsl"
 name = "Atmosphere, clouds and galaxy"
 sun = false
+moon = false
 stars = false
 clouds = false
 
